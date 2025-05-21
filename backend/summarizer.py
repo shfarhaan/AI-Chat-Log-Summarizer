@@ -1,0 +1,22 @@
+from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import TfidfVectorizer
+import nltk
+from parser import parse_chat_log
+nltk.download("stopwords")
+
+def generate_summary(file_path: str = "backend/data/chat.txt"):
+    user_msgs, ai_msgs = parse_chat_log(file_path)
+    all_text = " ".join(user_msgs + ai_msgs)
+    
+    stop_words = stopwords.words("english")
+    vectorizer = TfidfVectorizer(stop_words=stop_words, max_features=5)
+    tfidf_matrix = vectorizer.fit_transform([all_text])
+    keywords = vectorizer.get_feature_names_out()
+    
+    summary = {
+        "total_exchanges": len(user_msgs) + len(ai_msgs),
+        "user_count": len(user_msgs),
+        "ai_count": len(ai_msgs),
+        "keywords": list(keywords)
+    }
+    return summary

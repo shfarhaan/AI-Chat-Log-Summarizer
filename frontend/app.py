@@ -48,3 +48,23 @@ if st.button("Summarize Conversation"):
         st.markdown(f"- **Inferred Topic:** {summary['topic']}")
     except Exception as e:
         st.error(f"Summary failed: {str(e)}")
+        
+        st.divider()
+        st.subheader("Summarize All Chat Logs")
+
+if st.button("Summarize All Files"):
+    try:
+        res = requests.get(f"{API_URL}/summarize_all")
+        res.raise_for_status()
+        summaries = res.json()
+
+        if not summaries:
+            st.warning("No chat logs found in the backend/data/ folder.")
+        else:
+            for fname, summary in summaries.items():
+                st.markdown(f"### {fname}")
+                st.markdown(f"text\n{summary['summary_text']}\n")
+    except Exception as e:
+        st.error(f"Failed to summarize all logs: {str(e)}")
+
+

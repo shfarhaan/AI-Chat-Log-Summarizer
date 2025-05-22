@@ -14,6 +14,7 @@ def generate_summary(file_path: str = "backend/data/chat.txt"):
     all_text = " ".join(user_msgs + ai_msgs)
     if not all_text.strip():
         return {
+            "summary_text": "No conversation found in this file.",
             "total_exchanges": 0,
             "user_count": 0,
             "ai_count": 0,
@@ -22,7 +23,7 @@ def generate_summary(file_path: str = "backend/data/chat.txt"):
         }
 
     stop_words = stopwords.words('english')
-    vectorizer = TfidfVectorizer(stop_words=stop_words, max_features=5)
+    vectorizer = TfidfVectorizer(stop_words=stop_words, max_features=10)
     tfidf_matrix = vectorizer.fit_transform([all_text])
     keywords = vectorizer.get_feature_names_out()
 

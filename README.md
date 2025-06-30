@@ -32,3 +32,5 @@ ai-chat-summarizer/
 ├── .env                    # Contains GEMINI_API_KEY (not tracked by Git)
 ├── README.md               # You're here!
 ```
+
+

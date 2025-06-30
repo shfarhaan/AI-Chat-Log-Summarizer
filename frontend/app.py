@@ -6,8 +6,8 @@ import time
 
 
 # CONFIGURATION
-API_URL = "http://127.0.0.1:8000"
-
+# API_URL = "http://127.0.0.1:8000"
+API_URL = "https://ai-chat-log-summarizer-uj8f.onrender.com"
 
 
 # Page configuration

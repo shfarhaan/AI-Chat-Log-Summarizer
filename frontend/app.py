@@ -8,10 +8,10 @@ API_URL = "https://ai-chat-log-summarizer-uj8f.onrender.com"
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Chat Summarizer",
+    page_title="Khejurey Alaap with AI",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # Custom CSS for ChatGPT-like styling
@@ -201,11 +201,145 @@ if "show_summary" not in st.session_state:
 if "input_key" not in st.session_state:
     st.session_state.input_key = 0
 
+# Sidebar with randomness controls
+with st.sidebar:
+    st.markdown("### 🎛️ AI Response Settings")
+    
+    # Preset buttons
+    st.markdown("**Quick Presets:**")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🎯 Focused", help="Conservative, predictable responses"):
+            st.session_state.temperature = 0.2
+            st.session_state.top_p = 0.5
+            st.session_state.top_k = 10
+    
+    with col2:
+        if st.button("⚖️ Balanced", help="Good mix of accuracy and creativity"):
+            st.session_state.temperature = 0.7
+            st.session_state.top_p = 0.9
+            st.session_state.top_k = 40
+    
+    with col3:
+        if st.button("🎨 Creative", help="More varied, creative responses"):
+            st.session_state.temperature = 1.0
+            st.session_state.top_p = 0.95
+            st.session_state.top_k = 100
+    
+    st.markdown("---")
+    st.markdown("**Manual Controls:**")
+    
+    # Initialize default values if not set
+    if 'temperature' not in st.session_state:
+        st.session_state.temperature = 0.7
+    if 'top_p' not in st.session_state:
+        st.session_state.top_p = 0.9
+    if 'top_k' not in st.session_state:
+        st.session_state.top_k = 40
+    
+    # Sliders for fine control
+    temperature = st.slider(
+        "🌡️ Temperature (Randomness)", 
+        min_value=0.0, max_value=1.0, 
+        value=st.session_state.temperature, 
+        step=0.1,
+        help="Higher = more random/creative responses"
+    )
+    
+    top_p = st.slider(
+        "🎯 Top-p (Nucleus Sampling)", 
+        min_value=0.1, max_value=1.0, 
+        value=st.session_state.top_p, 
+        step=0.05,
+        help="Focus on top % of probable words"
+    )
+    
+    top_k = st.slider(
+        "🔢 Top-k (Token Pool)", 
+        min_value=1, max_value=100, 
+        value=st.session_state.top_k, 
+        step=5,
+        help="Number of top tokens to consider"
+    )
+    
+    # Update session state
+    st.session_state.temperature = temperature
+    st.session_state.top_p = top_p
+    st.session_state.top_k = top_k
+    
+    # Display current settings
+    st.markdown("---")
+    st.markdown("**Current Settings:**")
+    st.info(f"""
+    🌡️ Temperature: {temperature}
+    🎯 Top-p: {top_p}
+    🔢 Top-k: {top_k}
+    """)
+    
+    st.markdown("---")
+    st.markdown("### 🛠️ Tools")
+    
+    if st.button("📚 View All Summaries", use_container_width=True):
+        try:
+            with st.spinner("Loading all summaries..."):
+                res = requests.get(f"{API_URL}/summarize-all", timeout=30)
+                res.raise_for_status()
+                summaries = res.json()
+                
+                if summaries:
+                    st.markdown("### 📊 All Chat Summaries")
+                    for fname, summary in summaries.items():
+                        with st.expander(f"📄 {fname}"):
+                            if summary.get('summary_text'):
+                                st.info(summary['summary_text'])
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Total", summary.get('total_exchanges', 0))
+                            with col2:
+                                st.metric("User", summary.get('user_count', 0))
+                            with col3:
+                                st.metric("AI", summary.get('ai_count', 0))
+                            
+                            if summary.get('keywords'):
+                                st.markdown("**Keywords:** " + " • ".join([f"`{k}`" for k in summary['keywords']]))
+                else:
+                    st.info("No summaries found.")
+        except Exception as e:
+            st.error(f"Failed to load summaries: {str(e)}")
+    
+    st.markdown("---")
+    st.markdown("### ℹ️ About")
+    st.markdown("""
+    This app uses advanced NLP techniques:
+    - **TF-IDF** for keyword extraction
+    - **TextRank** for sentence ranking
+    - **Smart summarization** algorithms
+    - **Configurable AI randomness**
+    
+    💡 **Tips:**
+    - Adjust randomness for different conversation styles
+    - Use presets for quick configuration
+    - Lower temperature = more focused responses
+    - Higher temperature = more creative responses
+    """)
+    
+    # Connection status
+    try:
+        res = requests.get(f"{API_URL}/", timeout=5)
+        if res.status_code == 200:
+            st.success("🟢 Backend Connected")
+        else:
+            st.error("🔴 Backend Issues")
+    except:
+        st.error("🔴 Backend Offline")
+
 # Header
 st.markdown("""
 <div class="chat-header">
     <h1>🤖 AI Chat Summarizer</h1>
-    <p>Intelligent conversations with smart summarization</p>
+    <p>Intelligent conversations with smart summarization & configurable randomness</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -237,14 +371,15 @@ with col2:
             <div style="text-align: center; padding: 50px; color: #666;">
                 <h3>👋 Welcome to AI Chat Summarizer</h3>
                 <p>Start a conversation below and I'll help you summarize it intelligently!</p>
+                <p>🎛️ Adjust AI randomness settings in the sidebar for different conversation styles.</p>
             </div>
             """, unsafe_allow_html=True)
     
-    # Input area - Use dynamic key to reset input
+    # Input area
     user_input = st.text_input(
         "Message", 
         placeholder="Type your message here...",
-        key=f"chat_input_{st.session_state.input_key}",  # Dynamic key
+        key=f"chat_input_{st.session_state.input_key}",
         label_visibility="collapsed"
     )
     
@@ -256,9 +391,17 @@ with col2:
             if user_input.strip():
                 with st.spinner("🤔 Thinking..."):
                     try:
+                        # Include randomness parameters in the request
+                        payload = {
+                            "user_input": user_input,
+                            "temperature": st.session_state.temperature,
+                            "top_p": st.session_state.top_p,
+                            "top_k": st.session_state.top_k
+                        }
+                        
                         res = requests.post(
                             f"{API_URL}/chat", 
-                            json={"user_input": user_input},
+                            json=payload,
                             timeout=30
                         )
                         res.raise_for_status()
@@ -287,7 +430,6 @@ with col2:
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.chat_log = []
             st.session_state.show_summary = False
-            # Also reset input key to clear any text
             st.session_state.input_key += 1
             st.success("✅ Chat cleared!")
             st.rerun()
@@ -309,7 +451,7 @@ with col2:
             else:
                 st.warning("⚠️ No conversation to summarize!")
     
-    # Summary section
+    # Summary section (keep your existing summary code)
     if st.session_state.show_summary:
         with st.spinner("🧠 Generating intelligent summary..."):
             try:
@@ -376,60 +518,3 @@ with col2:
                 st.error("⏰ Summary generation timed out. Please try again.")
             except Exception as e:
                 st.error(f"❌ Summary failed: {str(e)}")
-
-# Sidebar with additional features
-with st.sidebar:
-    st.markdown("### 🛠️ Tools")
-    
-    if st.button("📚 View All Summaries", use_container_width=True):
-        try:
-            with st.spinner("Loading all summaries..."):
-                res = requests.get(f"{API_URL}/summarize-all", timeout=30)
-                res.raise_for_status()
-                summaries = res.json()
-                
-                if summaries:
-                    st.markdown("### 📊 All Chat Summaries")
-                    for fname, summary in summaries.items():
-                        with st.expander(f"📄 {fname}"):
-                            if summary.get('summary_text'):
-                                st.info(summary['summary_text'])
-                            
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Total", summary.get('total_exchanges', 0))
-                            with col2:
-                                st.metric("User", summary.get('user_count', 0))
-                            with col3:
-                                st.metric("AI", summary.get('ai_count', 0))
-                            
-                            if summary.get('keywords'):
-                                st.markdown("**Keywords:** " + " • ".join([f"`{k}`" for k in summary['keywords']]))
-                else:
-                    st.info("No summaries found.")
-        except Exception as e:
-            st.error(f"Failed to load summaries: {str(e)}")
-    
-    st.markdown("---")
-    st.markdown("### ℹ️ About")
-    st.markdown("""
-    This app uses advanced NLP techniques:
-    - **TF-IDF** for keyword extraction
-    - **TextRank** for sentence ranking
-    - **Smart summarization** algorithms
-    
-    💡 **Tips:**
-    - Have longer conversations for better summaries
-    - Use the summary feature after meaningful exchanges
-    - Clear chat regularly for better performance
-    """)
-    
-    # Connection status
-    try:
-        res = requests.get(f"{API_URL}/", timeout=5)
-        if res.status_code == 200:
-            st.success("🟢 Backend Connected")
-        else:
-            st.error("🔴 Backend Issues")
-    except:
-        st.error("🔴 Backend Offline")

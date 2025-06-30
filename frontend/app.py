@@ -354,38 +354,26 @@ with col2:
     # Chat display area
     chat_container = st.container()
     
-    def clean_message_display(message: str) -> str:
-        """Clean message for safe HTML display"""
-        # Escape HTML to prevent rendering issues
-        message = html.escape(message)
-        # Convert newlines to <br> tags for proper display
-        message = message.replace('\n', '<br>')
-        return message
-
     with chat_container:
         if st.session_state.chat_log:
             st.markdown("### 💬 Conversation")
             for speaker, message in st.session_state.chat_log:
-                
-                # Clean the message before displaying
-                clean_message = clean_message_display(message)
-                
                 if speaker == "You":
                     st.markdown(f"""
                     <div class="chat-message user-message">
-                        {clean_message}
+                        {message}
                     </div>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                     <div class="chat-message ai-message">
-                        {clean_message}
+                        {message}
                     </div>
                     """, unsafe_allow_html=True)
         else:
             st.markdown("""
             <div style="text-align: center; padding: 50px; color: #666;">
-                <h3>👋 Welcome to AI Chat & Summarizer</h3>
+                <h3>👋 Welcome to AI Chat Summarizer</h3>
                 <p>Start a conversation below and I'll help you summarize it intelligently!</p>
                 <p>🎛️ Adjust AI randomness settings in the sidebar for different conversation styles.</p>
             </div>

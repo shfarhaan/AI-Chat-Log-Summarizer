@@ -3,5 +3,6 @@
 backend/test_api.py
 backend/test_randomness.py
 
-backend/data
+data
 backend/__pycache__
+/__pycache__

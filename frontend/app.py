@@ -1,111 +1,436 @@
 import streamlit as st
 import requests
-import os
+import time
+
+
+
 
 # CONFIGURATION
 API_URL = "http://127.0.0.1:8000"
 
-st.set_page_config(page_title="AI Chat Summarizer", layout="centered")
-st.title("AI Chat with Summarizer")
+
+
+# Page configuration
+st.set_page_config(
+    page_title="AI Chat Summarizer",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Custom CSS for ChatGPT-like styling
+st.markdown("""
+<style>
+    /* Hide Streamlit default elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Main container styling */
+    .main-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0;
+    }
+    
+    /* Header styling */
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .chat-header h1 {
+        margin: 0;
+        font-size: 2.2em;
+        font-weight: 600;
+    }
+    
+    .chat-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1em;
+    }
+    
+    /* Chat messages styling */
+    .chat-message {
+        padding: 15px 20px;
+        margin: 10px 0;
+        border-radius: 18px;
+        max-width: 80%;
+        word-wrap: break-word;
+        line-height: 1.5;
+        font-size: 15px;
+    }
+    
+    .user-message {
+        background: #007AFF;
+        color: white;
+        margin-left: auto;
+        margin-right: 0;
+        border-bottom-right-radius: 5px;
+    }
+    
+    .ai-message {
+        background: #F1F3F4;
+        color: #333;
+        margin-left: 0;
+        margin-right: auto;
+        border-bottom-left-radius: 5px;
+        border: 1px solid #E1E3E4;
+    }
+    
+    /* Input area styling */
+    .input-container {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 2px 0;
+        border-top: 1px solid #326c8a;
+        margin-top: 3px;
+    }
+    
+    /* Button styling */
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin: 20px 0;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .summary-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 1px solid #E1E3E4;
+    }
+    
+    .summary-header {
+        color: #000000;
+        font-size: 1.3em;
+        font-weight: 600;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .metric-container {
+        display: flex;
+        gap: 20px;
+        margin: 15px 0;
+        flex-wrap: wrap;
+    }
+    
+    .metric-box {
+        background: #F8F9FA;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        min-width: 100px;
+        border: 1px solid #E9ECEF;
+    }
+    
+    .metric-value {
+        font-size: 1.8em;
+        font-weight: 700;
+        color: #007AFF;
+        display: block;
+    }
+    
+    .metric-label {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .keywords-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 15px 0;
+    }
+    
+    .keyword-tag {
+        background: #E3F2FD;
+        color: #1976D2;
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-size: 0.9em;
+        font-weight: 500;
+    }
+    
+    .summary-text {
+        background: #F8F9FA;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #007AFF;
+        margin: 15px 0;
+        font-size: 15px;
+        line-height: 1.6;
+        color: #1976D2;
+
+    }
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .chat-message {
+            max-width: 95%;
+        }
+        
+        .metric-container {
+            justify-content: center;
+        }
+        
+        .chat-header h1 {
+            font-size: 1.8em;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # SESSION STATE INITIALIZATION
 if "chat_log" not in st.session_state:
     st.session_state.chat_log = []
+if "show_summary" not in st.session_state:
+    st.session_state.show_summary = False
 
-# Layout columns for actions
-col1, col2 = st.columns([3, 1])
+# Header
+st.markdown("""
+<div class="chat-header">
+    <h1>🤖 AI Chat Summarizer</h1>
+    <p>Intelligent conversations with smart summarization</p>
+</div>
+""", unsafe_allow_html=True)
 
-with col1:
-    # USER INPUT FIELD
-    user_input = st.text_input("You:", key="chat_input")
-    if st.button("Send") and user_input.strip():
-        try:
-            res = requests.post(
-                f"{API_URL}/chat", json={"user_input": user_input}
-            )
-            res.raise_for_status()
-            ai_response = res.json()["ai_response"]
-
-            # Save to session log
-            st.session_state.chat_log.append(("You", user_input))
-            st.session_state.chat_log.append(("AI", ai_response))
-            # Clear input field after send
-            st.session_state.user_input = ""
-        except Exception as e:
-            st.error(f"Failed to connect to API: {str(e)}")
+# Main chat interface
+col1, col2, col3 = st.columns([1, 6, 1])
 
 with col2:
-    # CLEAR IN-PAGE CHAT HISTORY
-    if st.button("Clear Chat"):
-        st.session_state.chat_log = []
-        st.success("In-page chat history cleared.")
+    # Chat display area
+    chat_container = st.container()
+    
+    with chat_container:
+        if st.session_state.chat_log:
+            st.markdown("### 💬 Conversation")
+            for speaker, message in st.session_state.chat_log:
+                if speaker == "You":
+                    st.markdown(f"""
+                    <div class="chat-message user-message">
+                        {message}
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="chat-message ai-message">
+                        {message}
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 50px; color: #666;">
+                <h3>👋 Welcome to AI Chat Summarizer</h3>
+                <p>Start a conversation below and I'll help you summarize it intelligently!</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Input area
+    # st.markdown('<div class="input-container">', unsafe_allow_html=True)
+    
+    # User input
+    user_input = st.text_input(
+        "Message", 
+        placeholder="Type your message here...",
+        key="chat_input",
+        label_visibility="collapsed"
+    )
+    
+    # Action buttons
+    col_send, col_clear, col_reset, col_summary = st.columns(4)
+    
+    with col_send:
+        if st.button("📤 Send", use_container_width=True, type="primary"):
+            if user_input.strip():
+                with st.spinner("🤔 Thinking..."):
+                    try:
+                        res = requests.post(
+                            f"{API_URL}/chat", 
+                            json={"user_input": user_input},
+                            timeout=30
+                        )
+                        res.raise_for_status()
+                        ai_response = res.json()["ai_response"]
 
-    # RESET BACKEND LOG FILE
-    if st.button("Reset Log File"):
+                        # Save to session log
+                        st.session_state.chat_log.append(("You", user_input))
+                        st.session_state.chat_log.append(("AI", ai_response))
+                        
+                        # Clear input and rerun to show new messages
+                        st.rerun()
+                        
+                    except requests.exceptions.Timeout:
+                        st.error("⏰ Request timed out. Please try again.")
+                    except requests.exceptions.ConnectionError:
+                        st.error("🔌 Cannot connect to AI service. Please check if the backend is running.")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+            else:
+                st.warning("⚠️ Please enter a message first!")
+    
+    with col_clear:
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.chat_log = []
+            st.session_state.show_summary = False
+            st.success("✅ Chat cleared!")
+            st.rerun()
+    
+    with col_reset:
+        if st.button("🔄 Reset Backend", use_container_width=True):
+            try:
+                res = requests.post(f"{API_URL}/chat/clear", timeout=10)
+                res.raise_for_status()
+                st.success("✅ Backend reset!")
+            except Exception as e:
+                st.error(f"❌ Reset failed: {str(e)}")
+    
+    with col_summary:
+        if st.button("📊 Summarize", use_container_width=True, type="secondary"):
+            if st.session_state.chat_log:
+                st.session_state.show_summary = True
+                st.rerun()
+            else:
+                st.warning("⚠️ No conversation to summarize!")
+    
+    # st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Summary section
+    if st.session_state.show_summary:
+        with st.spinner("🧠 Generating intelligent summary..."):
+            try:
+                res = requests.get(f"{API_URL}/summarize", timeout=30)
+                res.raise_for_status()
+                summary = res.json()
+                
+                st.markdown("""
+                <div class="summary-card">
+                    <div class="summary-header">
+                        📝 Conversation Summary
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Main summary text
+                if summary.get('summary_text') and summary['summary_text'] != "No conversation found in this file.":
+                    st.markdown(f"""
+                    <div class="summary-text">
+                        <strong>📋 Summary:</strong><br>
+                        {summary['summary_text']}
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Statistics
+                st.markdown(f"""
+                <div class="metric-container">
+                    <div class="metric-box">
+                        <span class="metric-value">{summary.get('total_exchanges', 0)}</span>
+                        <div class="metric-label">Total Messages</div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value">{summary.get('user_count', 0)}</span>
+                        <div class="metric-label">Your Messages</div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value">{summary.get('ai_count', 0)}</span>
+                        <div class="metric-label">AI Responses</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Keywords
+                if summary.get('keywords'):
+                    keywords_html = "".join([f'<span class="keyword-tag">{keyword}</span>' for keyword in summary['keywords']])
+                    st.markdown(f"""
+                    <div>
+                        <strong>🏷️ Key Topics:</strong><br>
+                        <div class="keywords-container">
+                            {keywords_html}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Topic focus
+                if summary.get('topic'):
+                    st.markdown(f"""
+                    <div style="margin-top: 15px; color: #000000; padding: 15px; background: #E8F5E8; border-radius: 10px; border-left: 4px solid #4CAF50;">
+                        <strong>🎯 Main Focus:</strong> {summary['topic']}
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+            except requests.exceptions.Timeout:
+                st.error("⏰ Summary generation timed out. Please try again.")
+            except Exception as e:
+                st.error(f"❌ Summary failed: {str(e)}")
+
+# Sidebar with additional features
+with st.sidebar:
+    st.markdown("### 🛠️ Tools")
+    
+    if st.button("📚 View All Summaries", use_container_width=True):
         try:
-            res = requests.post(f"{API_URL}/chat/clear")
-            res.raise_for_status()
-            st.success("Backend chat log file reset.")
+            with st.spinner("Loading all summaries..."):
+                res = requests.get(f"{API_URL}/summarize-all", timeout=30)
+                res.raise_for_status()
+                summaries = res.json()
+                
+                if summaries:
+                    st.markdown("### 📊 All Chat Summaries")
+                    for fname, summary in summaries.items():
+                        with st.expander(f"📄 {fname}"):
+                            if summary.get('summary_text'):
+                                st.info(summary['summary_text'])
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Total", summary.get('total_exchanges', 0))
+                            with col2:
+                                st.metric("User", summary.get('user_count', 0))
+                            with col3:
+                                st.metric("AI", summary.get('ai_count', 0))
+                            
+                            if summary.get('keywords'):
+                                st.markdown("**Keywords:** " + " • ".join([f"`{k}`" for k in summary['keywords']]))
+                else:
+                    st.info("No summaries found.")
         except Exception as e:
-            st.error(f"Failed to reset backend log: {str(e)}")
-
-st.divider()
-
-# DISPLAY CHAT HISTORY
-if st.session_state.chat_log:
-    st.subheader("Conversation:")
-    for speaker, message in st.session_state.chat_log:
-        st.markdown(f"**{speaker}:** {message}")
-
-st.divider()
-
-# SUMMARY GENERATION
-if st.button("Summarize Conversation"):
+            st.error(f"Failed to load summaries: {str(e)}")
+    
+    st.markdown("---")
+    st.markdown("### ℹ️ About")
+    st.markdown("""
+    This app uses advanced NLP techniques:
+    - **TF-IDF** for keyword extraction
+    - **TextRank** for sentence ranking
+    - **Smart summarization** algorithms
+    
+    💡 **Tips:**
+    - Have longer conversations for better summaries
+    - Use the summary feature after meaningful exchanges
+    - Clear chat regularly for better performance
+    """)
+    
+    # Connection status
     try:
-        res = requests.get(f"{API_URL}/summarize")
-        res.raise_for_status()
-        summary = res.json()
-
-        st.subheader("Summary")
-        st.markdown(f"- **Total Exchanges:** {summary['total_exchanges']}")
-        st.markdown(f"- **User Messages:** {summary['user_count']}")
-        st.markdown(f"- **AI Messages:** {summary['ai_count']}")
-        st.markdown(
-            f"- **Common Keywords:** `{', '.join(summary['keywords'])}`"
-        )
-        st.markdown(f"- **Inferred Topic:** {summary['topic']}")
-        # Optional: display 100-word summary if available
-        if 'summary_100_words' in summary:
-            st.markdown(f"- **100-Word Summary:** {summary['summary_100_words']}")
-    except Exception as e:
-        st.error(f"Summary failed: {str(e)}")
-
-st.divider()
-# (Optional) Summarize All Logs
-if st.button("Summarize All Logs"):
-    try:
-        res = requests.get(f"{API_URL}/summarize-all")
-        res.raise_for_status()
-        summaries = res.json()
-
-        if not summaries:
-            st.warning("No chat logs found in the backend/data/ folder.")
+        res = requests.get(f"{API_URL}/", timeout=5)
+        if res.status_code == 200:
+            st.success("🟢 Backend Connected")
         else:
-            for fname, summary in summaries.items():
-                st.markdown(f"### {fname}")
-                st.markdown(f"- **Total Exchanges:** {summary['total_exchanges']}")
-                st.markdown(f"- **User Messages:** {summary['user_count']}")
-                st.markdown(
-                    f"- **AI Messages:** {summary['ai_count']}"
-                )
-                st.markdown(
-                    f"- **Keywords:** `{', '.join(summary['keywords'])}`"
-                )
-                st.markdown(f"- **Topic:** {summary['topic']}")
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 404:
-            st.warning("No summaries available. The backend log file may be empty.")
-        else:
-            st.error(f"Failed to summarize all logs: {str(e)}")
-    except Exception as e:
-        st.error(f"Failed to summarize all logs: {str(e)}")
+            st.error("🔴 Backend Issues")
+    except:
+        st.error("🔴 Backend Offline")

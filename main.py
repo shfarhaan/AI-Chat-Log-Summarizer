@@ -18,8 +18,18 @@ from summarizer import generate_summary, summarize_folder
 #     print(f"Warning: Could not download NLTK data: {e}")
 
 
-app = FastAPI()
+app = FastAPI(title="AI Chat Backend", version="1.0.0")
 
+
+# Health check endpoint (required by Render)
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "ai-chat-backend"}
+
+# Root endpoint
+@app.get("/")
+async def root():
+    return {"message": "AI Chat Backend API", "status": "running"}
 
 @app.get("/")
 def root():

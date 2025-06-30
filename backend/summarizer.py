@@ -1,10 +1,9 @@
-# backend/summarizer.py
+# Enhanced version with debugging to show which methods are being used
 
 import os
 import numpy as np
 import networkx as nx
 import nltk
-
 from typing import Dict
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.corpus import stopwords
@@ -13,41 +12,67 @@ from nltk.tokenize import sent_tokenize
 from nltk.cluster.util import cosine_distance
 
 
-
 nltk.download('stopwords')
 nltk.download('punkt')
+nltk.download('punkt_tab')
 
-def generate_summary(file_path: str = "backend/data/chat.txt", num_sentences: int = 3):
+
+def generate_summary(file_path: str = "backend/data/chat.txt", num_sentences: int = 6):
+    print(f"🔍 Starting summary generation for: {file_path}")
+    
     user_msgs, ai_msgs = parse_chat_log(file_path)
     total_exchanges = len(user_msgs) + len(ai_msgs)
+    
+    print(f"📊 Parsed {len(user_msgs)} user messages and {len(ai_msgs)} AI messages")
 
     all_text = " ".join(user_msgs + ai_msgs)
     if not all_text.strip():
+        print("❌ No text found in conversation")
         return {
             "summary_text": "No conversation found in this file.",
             "total_exchanges": 0,
             "user_count": 0,
             "ai_count": 0,
             "keywords": [],
-            "topic": "No conversation detected."
+            "topic": "No conversation detected.",
+            "method_used": "none"
         }
 
+    print(f"📝 Total text length: {len(all_text)} characters")
+    
     # Generate keywords using TF-IDF
     stop_words = stopwords.words('english')
     vectorizer = TfidfVectorizer(stop_words=stop_words, max_features=10)
     tfidf_matrix = vectorizer.fit_transform([all_text])
     keywords = vectorizer.get_feature_names_out()
+    
+    print(f"🏷️ Extracted keywords: {list(keywords)}")
 
     # Try TF-IDF based summary first
+    print("🎯 Attempting TF-IDF based summary...")
     summary_text = tfidf_based_summary(all_text, tfidf_matrix, vectorizer, num_sentences)
+    method_used = "tfidf"
     
-    # If TF-IDF summary fails, try TextRank algorithm
-    if not summary_text or len(summary_text.strip()) < 20:
+    if summary_text and len(summary_text.strip()) >= 20:
+        print(f"✅ TF-IDF summary successful (length: {len(summary_text)})")
+    else:
+        print(f"⚠️ TF-IDF summary failed or too short (length: {len(summary_text) if summary_text else 0})")
+        
+        # Try TextRank algorithm
+        print("🎯 Attempting TextRank (extractive) summary...")
         summary_text = extractive_summary(all_text, num_sentences)
-    
-    # If both fail, create a simple frequency-based summary
-    if not summary_text or len(summary_text.strip()) < 20:
-        summary_text = frequency_based_summary(all_text, user_msgs, ai_msgs, keywords)
+        method_used = "textrank"
+        
+        if summary_text and len(summary_text.strip()) >= 20:
+            print(f"✅ TextRank summary successful (length: {len(summary_text)})")
+        else:
+            print(f"⚠️ TextRank summary failed or too short (length: {len(summary_text) if summary_text else 0})")
+            
+            # Try frequency-based summary as final fallback
+            print("🎯 Attempting frequency-based summary...")
+            summary_text = frequency_based_summary(all_text, user_msgs, ai_msgs, keywords)
+            method_used = "frequency"
+            print(f"✅ Frequency-based summary completed (length: {len(summary_text)})")
 
     summary = {
         "summary_text": summary_text,
@@ -55,26 +80,38 @@ def generate_summary(file_path: str = "backend/data/chat.txt", num_sentences: in
         "user_count": len(user_msgs),
         "ai_count": len(ai_msgs),
         "keywords": list(keywords),
-        "topic": f"The conversation mainly focused on: {', '.join(keywords)}."
+        "topic": f"The conversation mainly focused on: {', '.join(keywords)}.",
+        "method_used": method_used,  # Added to show which method was used
+        "debug_info": {
+            "text_length": len(all_text),
+            "sentences_count": len(sent_tokenize(all_text)),
+            "keywords_found": len(keywords)
+        }
     }
+    
+    print(f"🎉 Summary generation complete using {method_used} method")
     return summary
 
-def tfidf_based_summary(text: str, tfidf_matrix, vectorizer, num_sentences: int = 3):
+def tfidf_based_summary(text: str, tfidf_matrix, vectorizer, num_sentences: int = 6):
     """Generate summary using TF-IDF scores to rank sentences"""
+    print("  🔧 Running TF-IDF analysis...")
     try:
         sentences = sent_tokenize(text)
+        print(f"  📄 Found {len(sentences)} sentences")
         
         if len(sentences) <= num_sentences:
+            print("  ℹ️ Text is short enough, returning full text")
             return text
         
         # Get feature names (keywords) and their TF-IDF scores
         feature_names = vectorizer.get_feature_names_out()
-        tfidf_scores = tfidf_matrix.toarray()[0]  # Get scores for the single document
+        tfidf_scores = tfidf_matrix.toarray()[0]
         
         # Create word-score mapping
         word_scores = dict(zip(feature_names, tfidf_scores))
+        print(f"  🎯 Top TF-IDF words: {dict(sorted(word_scores.items(), key=lambda x: x[1], reverse=True)[:5])}")
         
-        # Score each sentence based on TF-IDF scores of words it contains
+        # Score each sentence
         sentence_scores = []
         for i, sentence in enumerate(sentences):
             sentence_score = 0
@@ -82,51 +119,56 @@ def tfidf_based_summary(text: str, tfidf_matrix, vectorizer, num_sentences: int 
             word_count = 0
             
             for word in words:
-                # Clean word (remove punctuation)
                 clean_word = ''.join(char for char in word if char.isalnum())
                 if clean_word in word_scores:
                     sentence_score += word_scores[clean_word]
                     word_count += 1
             
-            # Average score per word (avoid bias toward longer sentences)
             if word_count > 0:
                 avg_score = sentence_score / word_count
-                # Boost score slightly for sentences with more important words
                 final_score = avg_score * (1 + (word_count / len(words)))
                 sentence_scores.append((final_score, i, sentence))
         
-        # Sort sentences by score and select top ones
-        sentence_scores.sort(reverse=True, key=lambda x: x[0])
+        if not sentence_scores:
+            print("  ❌ No sentences could be scored")
+            return ""
         
-        # Get top sentences but maintain original order
+        # Sort and select top sentences
+        sentence_scores.sort(reverse=True, key=lambda x: x[0])
         selected_indices = sorted([score_tuple[1] for score_tuple in sentence_scores[:num_sentences]])
         summary_sentences = [sentences[i] for i in selected_indices]
         
-        return ' '.join(summary_sentences)
+        result = ' '.join(summary_sentences)
+        print(f"  ✅ TF-IDF summary created: {len(result)} characters")
+        return result
     
     except Exception as e:
+        print(f"  ❌ TF-IDF summary failed: {str(e)}")
         return ""
 
 def extractive_summary(text: str, num_sentences: int = 3):
     """Generate extractive summary using TextRank algorithm"""
+    print("  🔧 Running TextRank analysis...")
     try:
-        # Tokenize into sentences
         sentences = sent_tokenize(text)
+        print(f"  📄 Processing {len(sentences)} sentences")
         
         if len(sentences) <= num_sentences:
+            print("  ℹ️ Text is short enough, returning full text")
             return text
         
-        # Remove stopwords and create word frequency matrix
         stop_words = stopwords.words('english')
         
         # Create similarity matrix
+        print("  🔗 Building sentence similarity matrix...")
         sentence_similarity_matrix = build_similarity_matrix(sentences, stop_words)
         
         # Apply PageRank algorithm
+        print("  📊 Applying PageRank algorithm...")
         sentence_similarity_graph = nx.from_numpy_array(sentence_similarity_matrix)
         scores = nx.pagerank(sentence_similarity_graph)
         
-        # Rank sentences based on scores
+        # Rank sentences
         ranked_sentence = sorted(((scores[i], s) for i, s in enumerate(sentences)), reverse=True)
         
         # Select top sentences
@@ -134,19 +176,23 @@ def extractive_summary(text: str, num_sentences: int = 3):
         for i in range(min(num_sentences, len(ranked_sentence))):
             selected_sentences.append(ranked_sentence[i][1])
         
-        # Order sentences as they appear in original text
+        # Maintain original order
         summary_sentences = []
         for sentence in sentences:
             if sentence in selected_sentences:
                 summary_sentences.append(sentence)
         
-        return ' '.join(summary_sentences)
+        result = ' '.join(summary_sentences)
+        print(f"  ✅ TextRank summary created: {len(result)} characters")
+        return result
     
     except Exception as e:
+        print(f"  ❌ TextRank summary failed: {str(e)}")
         return ""
 
 def build_similarity_matrix(sentences, stop_words):
     """Build similarity matrix for sentences"""
+    print(f"    🏗️ Building {len(sentences)}x{len(sentences)} similarity matrix...")
     similarity_matrix = np.zeros((len(sentences), len(sentences)))
     
     for idx1 in range(len(sentences)):
@@ -155,6 +201,7 @@ def build_similarity_matrix(sentences, stop_words):
                 continue
             similarity_matrix[idx1][idx2] = sentence_similarity(sentences[idx1], sentences[idx2], stop_words)
     
+    print(f"    ✅ Similarity matrix completed")
     return similarity_matrix
 
 def sentence_similarity(sent1, sent2, stopwords=None):
@@ -185,8 +232,8 @@ def sentence_similarity(sent1, sent2, stopwords=None):
 
 def frequency_based_summary(text: str, user_msgs: list, ai_msgs: list, keywords: list):
     """Generate a simple frequency-based summary as fallback"""
+    print("  🔧 Creating frequency-based summary...")
     try:
-        # Create a basic summary based on conversation structure and keywords
         summary_parts = []
         
         # Conversation overview
@@ -195,13 +242,12 @@ def frequency_based_summary(text: str, user_msgs: list, ai_msgs: list, keywords:
         
         # Topic identification
         if keywords and len(keywords) > 0:
-            main_topics = ', '.join(keywords[:5])  # Top 5 keywords
+            main_topics = ', '.join(keywords[:5])
             summary_parts.append(f"The discussion primarily covered topics related to {main_topics}.")
         
         # Find most informative sentences
         sentences = sent_tokenize(text)
         if len(sentences) > 3:
-            # Score sentences based on keyword presence
             sentence_scores = []
             for sentence in sentences:
                 score = 0
@@ -209,29 +255,44 @@ def frequency_based_summary(text: str, user_msgs: list, ai_msgs: list, keywords:
                 for keyword in keywords:
                     if keyword.lower() in sentence_lower:
                         score += 1
-                if len(sentence.split()) > 5:  # Prefer longer sentences
+                if len(sentence.split()) > 5:
                     sentence_scores.append((score, sentence))
-            
-            # Sort by score and take top sentences
             sentence_scores.sort(reverse=True)
             if sentence_scores:
                 top_sentence = sentence_scores[0][1]
                 summary_parts.append(f"Key point: {top_sentence}")
         
-        return ' '.join(summary_parts) if summary_parts else "The conversation covered various topics but no clear summary could be generated."
+        result = ' '.join(summary_parts) if summary_parts else "The conversation covered various topics but no clear summary could be generated."
+        print(f"  ✅ Frequency summary created: {len(result)} characters")
+        return result
     
     except Exception as e:
+        print(f"  ❌ Frequency summary failed: {str(e)}")
         return "Summary generation failed, but the conversation contained meaningful exchanges."
-    
-    
+
 def summarize_folder(folder_path: str = "backend/data/") -> Dict[str, dict]:
+    """Summarize all text files in a folder"""
+    print(f"📁 Summarizing all files in: {folder_path}")
     summaries = {}
-    for filename in os.listdir(folder_path):
-        if filename.endswith(".txt"):
+    
+    try:
+        files = [f for f in os.listdir(folder_path) if f.endswith(".txt")]
+        print(f"📄 Found {len(files)} text files: {files}")
+        
+        for filename in files:
+            print(f"📝 Processing {filename}...")
             file_path = os.path.join(folder_path, filename)
             try:
                 summary = generate_summary(file_path)
                 summaries[filename] = summary
+                print(f"✅ {filename} processed successfully")
             except Exception as e:
+                print(f"❌ Error processing {filename}: {str(e)}")
                 summaries[filename] = {"error": str(e)}
+                
+    except Exception as e:
+        print(f"❌ Error accessing folder: {str(e)}")
+        return {"error": f"Could not access folder: {str(e)}"}
+    
+    print(f"🎉 Folder summarization complete: {len(summaries)} files processed")
     return summaries

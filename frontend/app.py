@@ -354,49 +354,34 @@ with col2:
     # Chat display area
     chat_container = st.container()
     
-    # def clean_message_display(message: str) -> str:
-    #     """Clean message for safe HTML display"""
-    #     # Escape HTML to prevent rendering issues
-    #     message = html.escape(message)
-    #     # Convert newlines to <br> tags for proper display
-    #     message = message.replace('\n', '<br>')
-    #     return message
     def clean_message_display(message: str) -> str:
-        """Clean message for display - no HTML escaping needed"""
-        return message  # Let Streamlit handle markdown
+        """Clean message for safe HTML display"""
+        # Escape HTML to prevent rendering issues
+        message = html.escape(message)
+        # Convert newlines to <br> tags for proper display
+        message = message.replace('\n', '<br>')
+        return message
 
-    # with chat_container:
-    #     if st.session_state.chat_log:
-    #         st.markdown("### 💬 Conversation")
-    #         for speaker, message in st.session_state.chat_log:
-                
-    #             # Clean the message before displaying
-    #             clean_message = clean_message_display(message)
-                
-    #             if speaker == "You":
-    #                 st.markdown(f"""
-    #                 <div class="chat-message user-message">
-    #                     {clean_message}
-    #                 </div>
-    #                 """, unsafe_allow_html=True)
-    #             else:
-    #                 st.markdown(f"""
-    #                 <div class="chat-message ai-message">
-    #                     {clean_message}
-    #                 </div>
-    #                 """, unsafe_allow_html=True)
     with chat_container:
         if st.session_state.chat_log:
             st.markdown("### 💬 Conversation")
             for speaker, message in st.session_state.chat_log:
+                
+                # Clean the message before displaying
+                clean_message = clean_message_display(message)
+                
                 if speaker == "You":
-                    st.markdown(f'<div class="user-message-wrapper">', unsafe_allow_html=True)
-                    st.markdown(message)  # This will render markdown
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="chat-message user-message">
+                        {clean_message}
+                    </div>
+                    """, unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div class="ai-message-wrapper">', unsafe_allow_html=True)
-                    st.markdown(message)  # This will render markdown
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="chat-message ai-message">
+                        {clean_message}
+                    </div>
+                    """, unsafe_allow_html=True)
         else:
             st.markdown("""
             <div style="text-align: center; padding: 50px; color: #666;">

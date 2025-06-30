@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
 import time
+import html
+import re
 
 # CONFIGURATION
 # API_URL = "http://127.0.0.1:8000"
@@ -346,14 +348,28 @@ st.markdown("""
 # Main chat interface
 col1, col2, col3 = st.columns([1, 6, 1])
 
+
+
 with col2:
     # Chat display area
     chat_container = st.container()
     
+    def clean_message_display(message: str) -> str:
+        """Clean message for safe HTML display"""
+        # Escape HTML to prevent rendering issues
+        message = html.escape(message)
+        # Convert newlines to <br> tags for proper display
+        message = message.replace('\n', '<br>')
+        return message
+
     with chat_container:
         if st.session_state.chat_log:
             st.markdown("### 💬 Conversation")
             for speaker, message in st.session_state.chat_log:
+                
+                # Clean the message before displaying
+                clean_message = clean_message_display(message)
+                
                 if speaker == "You":
                     st.markdown(f"""
                     <div class="chat-message user-message">

@@ -1,10 +1,11 @@
 # backend/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from chatbot import get_ai_response
-from summarizer import generate_summary
+from summarizer import generate_summary, summarize_folder
+
 import os
 
 app = FastAPI()
@@ -44,3 +45,21 @@ def chat_endpoint(payload: ChatRequest):
 @app.get("/summarize")
 def summarize_endpoint():
     return generate_summary(CHAT_LOG_PATH)
+
+
+@app.post("/chat/clear")
+def clear_chat_log():
+    open(CHAT_LOG_PATH, "w", encoding="utf-8").close()
+    return {"status": "cleared"}
+
+
+
+@app.get("/summarize-all")
+def summarize_all_logs():
+    try:
+        summaries = summarize_folder("backend/data/")
+        if not summaries:
+            return Response(status_code=404)
+        return summaries
+    except Exception as e:
+        return {"error": str(e)}

@@ -245,8 +245,7 @@ with col2:
         "Message", 
         placeholder="Type your message here...",
         key=f"chat_input_{st.session_state.input_key}",  # Dynamic key
-        label_visibility="collapsed",
-        clear_on_submit=True
+        label_visibility="collapsed"
     )
     
     # Action buttons

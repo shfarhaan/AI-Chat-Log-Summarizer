@@ -1,12 +1,22 @@
 # backend/main.py
 
+import os
+import nltk
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from chatbot import get_ai_response
 from summarizer import generate_summary, summarize_folder
 
-import os
+
+
+# # Download required NLTK data on startup
+# try:
+#     nltk.download('stopwords', quiet=True)
+#     nltk.download('punkt', quiet=True)
+# except Exception as e:
+#     print(f"Warning: Could not download NLTK data: {e}")
+
 
 app = FastAPI()
 

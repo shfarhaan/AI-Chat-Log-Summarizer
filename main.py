@@ -5,9 +5,9 @@ import nltk
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 from chatbot import get_ai_response
 from summarizer import generate_summary, summarize_folder
-
 
 
 # # Download required NLTK data on startup
@@ -49,11 +49,24 @@ os.makedirs(os.path.dirname(CHAT_LOG_PATH), exist_ok=True)
 
 class ChatRequest(BaseModel):
     user_input: str
+    # Optional randomness parameters
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 0.9
+    top_k: Optional[int] = 40
+    
 
 @app.post("/chat")
 def chat_endpoint(payload: ChatRequest):
     user_msg = f"User: {payload.user_input}"
-    ai_msg_text = get_ai_response(payload.user_input)
+    
+    # Pass randomness parameters to AI response function
+    ai_msg_text = get_ai_response(
+        payload.user_input,
+        temperature=payload.temperature,
+        top_p=payload.top_p,
+        top_k=payload.top_k
+    )
+    
     ai_msg = f"AI: {ai_msg_text}"
 
     with open(CHAT_LOG_PATH, "a", encoding="utf-8") as f:

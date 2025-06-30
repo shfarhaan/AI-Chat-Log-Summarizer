@@ -1,14 +1,14 @@
 services:
   - type: web
-    name: ai-chat-log-summarizer
+    name: ai-chat-backend
     env: python
     region: oregon
     plan: free
-    buildCommand: pip install -r backend\requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host=0.0.0.0 --port=$PORT
     envVars:
       - key: GEMINI_API_KEY
-        value: gemini_api_key
+        value: your_gemini_api_key_here
       - key: PYTHON_VERSION
         value: 3.11.0
     healthCheckPath: /health

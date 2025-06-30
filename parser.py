@@ -1,6 +1,6 @@
 # backend/parser.py
 
-def parse_chat_log(file_path: str = "backend/data/chat.txt"):
+def parse_chat_log(file_path: str = "data/chat.txt"):
     user_msgs = []
     ai_msgs = []
     

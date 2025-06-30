@@ -2,13 +2,9 @@ import streamlit as st
 import requests
 import time
 
-
-
-
 # CONFIGURATION
 # API_URL = "http://127.0.0.1:8000"
 API_URL = "https://ai-chat-log-summarizer-uj8f.onrender.com"
-
 
 # Page configuration
 st.set_page_config(
@@ -201,6 +197,9 @@ if "chat_log" not in st.session_state:
     st.session_state.chat_log = []
 if "show_summary" not in st.session_state:
     st.session_state.show_summary = False
+# Add a key for input clearing
+if "input_key" not in st.session_state:
+    st.session_state.input_key = 0
 
 # Header
 st.markdown("""
@@ -241,14 +240,11 @@ with col2:
             </div>
             """, unsafe_allow_html=True)
     
-    # Input area
-    # st.markdown('<div class="input-container">', unsafe_allow_html=True)
-    
-    # User input
+    # Input area - Use dynamic key to reset input
     user_input = st.text_input(
         "Message", 
         placeholder="Type your message here...",
-        key="chat_input",
+        key=f"chat_input_{st.session_state.input_key}",  # Dynamic key
         label_visibility="collapsed"
     )
     
@@ -272,7 +268,10 @@ with col2:
                         st.session_state.chat_log.append(("You", user_input))
                         st.session_state.chat_log.append(("AI", ai_response))
                         
-                        # Clear input and rerun to show new messages
+                        # Clear input by incrementing the key
+                        st.session_state.input_key += 1
+                        
+                        # Rerun to show new messages and cleared input
                         st.rerun()
                         
                     except requests.exceptions.Timeout:
@@ -288,6 +287,8 @@ with col2:
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.chat_log = []
             st.session_state.show_summary = False
+            # Also reset input key to clear any text
+            st.session_state.input_key += 1
             st.success("✅ Chat cleared!")
             st.rerun()
     
@@ -307,8 +308,6 @@ with col2:
                 st.rerun()
             else:
                 st.warning("⚠️ No conversation to summarize!")
-    
-    # st.markdown('</div>', unsafe_allow_html=True)
     
     # Summary section
     if st.session_state.show_summary:

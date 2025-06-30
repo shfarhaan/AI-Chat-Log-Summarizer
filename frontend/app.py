@@ -356,7 +356,9 @@ with col2:
     
     def clean_message_display(message: str) -> str:
         """Clean message for safe HTML display"""
-        # Just convert newlines to <br> tags for proper display
+        # Escape HTML to prevent rendering issues
+        message = html.escape(message)
+        # Convert newlines to <br> tags for proper display
         message = message.replace('\n', '<br>')
         return message
 

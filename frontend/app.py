@@ -373,13 +373,13 @@ with col2:
                 if speaker == "You":
                     st.markdown(f"""
                     <div class="chat-message user-message">
-                        {message}
+                        {clean_message}
                     </div>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                     <div class="chat-message ai-message">
-                        {message}
+                        {clean_message}
                     </div>
                     """, unsafe_allow_html=True)
         else:
